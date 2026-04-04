@@ -4,28 +4,26 @@ from openai import OpenAI
 from env import UIAuditorEnv, Action
 
 # ============================================================================
-# Step 3: Testing (Inference Baseline)
-# Run an OpenAI-compatible agent against the OpenEnv Automated Web UI Auditor
+# Inference Baseline — Automated Web UI & Accessibility Auditor
+# Scalar x Meta & Hugging Face Agentic AI Hackathon
 # ============================================================================
 
-# Environment variables setup (as defined in specs)
+# --- Required environment variables (per OpenEnv spec) ---
 API_BASE_URL = os.getenv("API_BASE_URL", "https://integrate.api.nvidia.com/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "google/gemma-2-9b-it")# Prioritize HF_TOKEN as per prompt instructions, fallback to OPENAI_API_KEY
-API_KEY_STRING = os.getenv("HF_TOKEN", os.getenv("OPENAI_API_KEY", "your-api-key-here"))
+MODEL_NAME   = os.getenv("MODEL_NAME",   "google/gemma-2-9b-it")
+HF_TOKEN     = os.getenv("HF_TOKEN")          # NO default — must be supplied at runtime
 
-# Support multiple API keys separated by comma for fallback resilience
-API_KEYS = [k.strip() for k in API_KEY_STRING.split(",") if k.strip()]
-if not API_KEYS:
-    API_KEYS = ["your-api-key-here"]
+# Optional — only required when using from_docker_image()
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+
 
 def run_task(task_difficulty: str):
-    print(f"\n{'='*60}")
-    print(f"🚀 Starting Baseline Agent for Task: {task_difficulty.upper()}")
-    print(f"{'='*60}")
-    
+    # ── START log (required structured format) ──────────────────────────────
+    print(f"[START] task={task_difficulty.upper()} model={MODEL_NAME} endpoint={API_BASE_URL}")
+
     env = UIAuditorEnv(task_difficulty=task_difficulty)
     obs = env.reset()
-    
+
     system_prompt = (
         "You are an Expert Frontend UI/UX and Accessibility Auditor agent operating "
         "within a strictly typed OpenEnv environment.\n"
@@ -36,9 +34,7 @@ def run_task(task_difficulty: str):
     )
 
     while not obs.is_done:
-        print(f"\n[Step {env.steps + 1}/15] 🎯 Score: {obs.current_score}")
-        print(f"Feedback: {obs.feedback}")
-        print(f"Task Instruction: {obs.task_description}")
+        step_num = env.steps + 1
 
         schema = Action.model_json_schema()
         user_content = (
@@ -49,61 +45,45 @@ def run_task(task_difficulty: str):
         )
 
         try:
-            response = None
-            last_error = None
-            
-            # Iterate through available keys and execute fallback if one fails
-            for api_key in API_KEYS:
-                client = OpenAI(base_url=API_BASE_URL, api_key=api_key)
-                try:
-                    response = client.chat.completions.create(
-                        model=MODEL_NAME,
-                        messages=[
-                            {"role": "user", "content": system_prompt + "\nRespond with ONLY valid JSON.\n\n" + user_content}
-                        ]
-                    )
-                    break # Success! Break out of the fallback loop
-                except Exception as e:
-                    last_error = e
-                    continue # Try the next key
-                    
-            if response is None:
-                raise Exception(f"All {len(API_KEYS)} API keys failed. Last error: {last_error}")
-            
+            client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "user", "content": system_prompt + "\nRespond with ONLY valid JSON.\n\n" + user_content}
+                ]
+            )
+
             raw_content = response.choices[0].message.content.strip()
-            # Robust JSON extraction to prevent 'trailing characters' decoding errors common with Gemma models
+            # Robust JSON extraction — handles markdown code fences from some models
             start_idx = raw_content.find('{')
-            end_idx = raw_content.rfind('}')
+            end_idx   = raw_content.rfind('}')
             if start_idx != -1 and end_idx != -1:
-                raw_content = raw_content[start_idx:end_idx+1]
-            
+                raw_content = raw_content[start_idx:end_idx + 1]
+
             action = Action.model_validate_json(raw_content)
-            
-            # Readability logs
-            print(f"\n🤖 Agent Output >> Action: {action.action_type} on '{action.node_id}'")
-            if action.action_type == "update_attribute":
-                print(f"   Update -> {action.attr_name}: '{action.new_value}'")
-            elif action.action_type == "modify_css":
-                print(f"   Style -> {action.css_property}: '{action.new_hex_code}'")
-            elif action.action_type == "reorder_nodes":
-                print(f"   Order -> {action.new_child_order}")
-                
+
             obs, reward = env.step(action)
-            print(f"🌍 Environment Evaluated >> Dense Result: {reward.score}")
-            
+
+            # ── STEP log (required structured format) ───────────────────────
+            print(
+                f"[STEP] step={step_num} action={action.action_type} "
+                f"node={action.node_id} score={reward.score}"
+            )
+
         except Exception as e:
-            print(f"\n❌ Error calling LLM API or structuring response: {e}")
-            print("Ensure `openai >= 1.40.0` is installed and the API url/token are correct.")
+            # ── STEP log on error ────────────────────────────────────────────
+            print(f"[STEP] step={step_num} error={str(e)}")
             break
 
-    print(f"\n🏁 Task {task_difficulty.upper()} Completed | Final Dense Score: {obs.current_score}/1.0")
+    # ── END log (required structured format) ────────────────────────────────
+    print(f"[END] task={task_difficulty.upper()} final_score={obs.current_score}")
+
 
 if __name__ == "__main__":
-    print("============================================================================")
-    print("🔍 Automated Web UI & Accessibility Auditor (Baseline Agent Testing)")
-    print(f"⚙️ Target Model: {MODEL_NAME}")
-    print(f"🔗 Target Endpoint: {API_BASE_URL}")
-    print("============================================================================")
-    
+    print(f"[START] Automated Web UI & Accessibility Auditor — Baseline Agent")
+    print(f"[START] model={MODEL_NAME} endpoint={API_BASE_URL}")
+
     for level in ["easy", "medium", "hard"]:
         run_task(level)
+
+    print("[END] All tasks completed.")

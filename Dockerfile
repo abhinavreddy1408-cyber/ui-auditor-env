@@ -8,6 +8,7 @@ WORKDIR /app
 # Install only what we exactly need layer-by-layer
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
 # ==============================================================================
 # Final Execution Stage
 # Highly Optimized for Scalar x Meta 2 vCPU / 8 GB RAM Limit!
@@ -21,5 +22,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy simulator environment payloads
 COPY . .
-# Keep the container alive indefinitely so the OpenEnv orchestrator can import the environment variables and execute tasks
-CMD ["tail", "-f", "/dev/null"]
+# Expose Hugging Face Spaces required port
+EXPOSE 7860
+# Launch Gradio demo on port 7860
+CMD ["python", "app.py"]
