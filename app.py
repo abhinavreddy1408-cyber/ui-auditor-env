@@ -23,19 +23,21 @@ def health_check():
 
 # Helper to expose namespaced routes at the root level for simpler validators
 @app.post("/reset")
-async def root_reset(request: bytes = None):
-    # Pass-through or redirect doesn't work well for POST with bytes,
-    # but create_app usually puts the env router in app.router.
-    # A cleaner way is to use the existing app's handler.
-    from fastapi import Request
+async def root_reset():
     from starlette.responses import RedirectResponse
-    return RedirectResponse(url="/envs/ui-accessibility-auditor/reset")
+    return RedirectResponse(url="/envs/ui-accessibility-auditor/reset", status_code=307)
 
 
 @app.post("/step")
 async def root_step():
     from starlette.responses import RedirectResponse
-    return RedirectResponse(url="/envs/ui-accessibility-auditor/step")
+    return RedirectResponse(url="/envs/ui-accessibility-auditor/step", status_code=307)
+
+
+@app.get("/metadata")
+async def root_metadata():
+    from starlette.responses import RedirectResponse
+    return RedirectResponse(url="/envs/ui-accessibility-auditor/metadata", status_code=307)
 
 
 def main() -> None:
