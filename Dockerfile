@@ -22,7 +22,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy simulator environment payloads
 COPY . .
-# Expose Hugging Face Spaces required port
+# Expose the OpenEnv HTTP API port
 EXPOSE 7860
-# Launch Gradio demo on port 7860
+# Launch the OpenEnv-compatible API server
 CMD ["python", "app.py"]
