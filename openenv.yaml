@@ -1,0 +1,30 @@
+schema_version: "1.0"
+environment:
+  name: "ui-accessibility-auditor"
+  version: "0.1.0"
+  description: "Automated Web UI & Accessibility Auditor (Dribbble-Inspired Premium Dashboard Simulator) for OpenEnv hackathon."
+  author: "V.Abhinav"
+  module: "env.UIAuditorEnv"
+  class_name: "UIAuditorEnv"
+tags:
+  - accessibility
+  - wcag
+  - ui-auditing
+  - dom-manipulation
+resources:
+  cpu: "2"
+  memory: "8Gi"
+  runtime_limit: "20m"
+tasks:
+  - id: "easy"
+    description: "Add descriptive alt text to hero image"
+    max_steps: 15
+    reward_threshold: 1.0
+  - id: "medium"
+    description: "Fix CTA button color contrast to WCAG standards using #50C878"
+    max_steps: 15
+    reward_threshold: 1.0
+  - id: "hard"
+    description: "Reorder and fix semantic header structure (H1 > H2 > H3)"
+    max_steps: 15
+    reward_threshold: 1.0

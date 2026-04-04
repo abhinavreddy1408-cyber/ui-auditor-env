@@ -1,0 +1,3 @@
+Currently, generic AI web-agents are bloated—relying on memory-heavy headless Chromium models that scrape raw HTML blindly. Our solution is the Automated Web UI & Accessibility Auditor—a zero-browser, strictly-typed Pydantic simulator built efficiently upon the OpenEnv framework.
+
+Inspired by premium Dribbble UIs (harnessing Emerald #50C878 & Soft Gold #FFD700 styling cues), our system extracts lightweight Dictionary ASTs natively. This completely eliminates AI hallucination by forcing execution paths strictly against Pydantic Action schemas. Furthermore, we abandon archaic pass/fail binary metrics, utilizing dense, continuous reward shaping [0.0 -> 1.0] to accurately measure complex agent reasoning around strict WCAG compliance and nuanced dashboard structures.
