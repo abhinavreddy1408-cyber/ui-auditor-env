@@ -13,7 +13,12 @@ app_port: 7860
 
 A premium, Dribbble-inspired simulated environment built specifically for the **Scalar × Meta & Hugging Face Agentic AI Hackathon**.
 
-This project provides a robust, lightweight, strictly typed OpenEnv environment where AI Agents act as **Frontend Accessibility & UI Auditors**. Instead of rendering heavy headless browsers, the agent evaluates lightweight dictionary-based DOM trees and surgically applies semantic fixes and visual contrast (Emerald #50C878 and Gold #FFD700) optimizations to achieve WCAG compliance and optimal dashboard structures.
+![AI Auditor Hero](file:///C:/Users/abhin/.gemini/antigravity/brain/bda56180-769c-4be9-ab9a-415a7d291efa/ai_auditor_hero_v2_1775312085429.png)
+
+## 🌟 The Vision & Problem
+Currently, generic AI web-agents are bloated—relying on memory-heavy headless Chromium models that scrape raw HTML blindly. For enterprise-grade accessibility (WCAG) and Semantic SEO auditing, this approach is imprecise, prone to hallucination, and extremely expensive to scale.
+
+Our solution is the **Automated Web UI & Accessibility Auditor**—a zero-browser, strictly-typed Pydantic simulator built efficiently upon the **OpenEnv** framework. We transform the "black box" of web-agent interaction into a deterministic, surgical repair system that handles complex DOM mutations with 100% schema compliance.
 
 ## 🌟 Hackathon Highlights
 
