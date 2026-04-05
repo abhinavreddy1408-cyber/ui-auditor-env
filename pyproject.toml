@@ -4,15 +4,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "openenv-ui-auditor"
 version = "0.1.0"
-description = "Automated Web UI & Accessibility Auditor for OpenEnv (Scalar x Meta & HF AI Hackathon)"
+description = "Automated Web UI & Accessibility Auditor for OpenEnv (Scalar x Meta & Hugging Face AI Hackathon)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "openenv-core==0.2.1",
+    "openenv-core>=0.2.1",
     "pydantic>=2.0.0",
     "openai>=1.40.0"
 ]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
 ]
+
+[project.scripts]
+server = "server.app:main"

@@ -25,4 +25,4 @@ COPY . .
 # Expose the OpenEnv HTTP API port
 EXPOSE 7860
 # Launch the OpenEnv-compatible API server
-CMD ["python", "app.py"]
+CMD ["python", "server/app.py"]

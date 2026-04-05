@@ -1,4 +1,8 @@
 import os
+import sys
+
+# Ensure the root directory is in the path so we can import env.py
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import uvicorn
 from openenv.core.env_server.http_server import create_app
