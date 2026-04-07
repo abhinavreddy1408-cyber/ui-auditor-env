@@ -1,3 +1,10 @@
 __pycache__/
 .pytest_cache/
 .tmp_openenv_pkg/
+node_modules/
+dist/
+.DS_Store
+.env
+web/node_modules/
+web/dist/
+web/tsconfig.tsbuildinfo

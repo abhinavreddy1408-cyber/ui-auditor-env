@@ -1,17 +1,27 @@
-import json
 import os
-
+import json
 from openai import OpenAI
+from env import UIAuditorEnv, Action
 
-from env import Action, UIAuditorEnv
+# ===================================================================
+# CRITICAL FIX FOR HACKATHON VALIDATOR (LiteLLM Proxy)
+# Must use the exact variables the hackathon injects
+# ===================================================================
+API_BASE_URL = os.getenv("API_BASE_URL")
+API_KEY      = os.getenv("API_KEY")
+MODEL_NAME   = os.getenv("MODEL_NAME", "gpt-4o-mini")   # safe default
 
+# Safety check (required for validator)
+if not API_BASE_URL or not API_KEY:
+    raise ValueError(
+        "Missing API_BASE_URL or API_KEY. "
+        "Hackathon requires you to use their injected LiteLLM proxy variables."
+    )
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://integrate.api.nvidia.com/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "google/gemma-2-9b-it")
-API_KEY = (
-    os.getenv("OPENAI_API_KEY")
-    or os.getenv("HF_TOKEN")
-    or os.getenv("NVIDIA_API_KEY")
+# Initialize client using hackathon's proxy
+client = OpenAI(
+    base_url=API_BASE_URL,
+    api_key=API_KEY
 )
 
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")

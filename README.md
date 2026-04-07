@@ -74,6 +74,15 @@ export OPENAI_API_KEY="sk-your-actual-api-key"
 python inference.py
 ```
 
+**4. Launch the new React Playground UI locally:**
+```bash
+# from repo root
+cd web && npm install && npm run dev
+# in another shell start the API
+python server/app.py
+# then open http://localhost:5173
+```
+
 ## 📦 Containerization (Hugging Face Spaces Ready)
 The environment strictly adheres to the requested bounds (8GB RAM / 2 vCPU):
 ```bash

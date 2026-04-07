@@ -10,7 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "openenv-core>=0.2.1",
     "pydantic>=2.0.0",
-    "openai>=1.40.0"
+    "openai>=1.40.0",
+    "fastapi>=0.110.0"
 ]
 
 [project.optional-dependencies]
