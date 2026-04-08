@@ -151,16 +151,16 @@ async def ui_state():
 @app.post("/api/run-agent", response_model=RunAgentResponse)
 @app.post("/ui/run-agent", response_model=RunAgentResponse)
 async def ui_run_agent(payload: RunAgentRequest):
-    api_key = (
-        payload.api_key
-        or os.getenv("OPENAI_API_KEY")
-        or os.getenv("HF_TOKEN")
-        or os.getenv("NVIDIA_API_KEY")
-    )
-    if not api_key:
-        raise HTTPException(status_code=400, detail="API key missing.")
+    # Validators require all LLM traffic to go through the injected LiteLLM proxy.
+    try:
+        base_url = os.environ["API_BASE_URL"]
+        api_key = os.environ["API_KEY"]
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required environment variable: {e.args[0]}. This is required for the LiteLLM proxy.",
+        )
 
-    base_url = payload.base_url or os.getenv("API_BASE_URL", "https://api.openai.com/v1")
     model = payload.model
 
     env = UIAuditorEnv(task_difficulty=payload.task_difficulty)

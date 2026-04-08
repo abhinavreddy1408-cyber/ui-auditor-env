@@ -7,23 +7,17 @@ from env import UIAuditorEnv, Action
 # CRITICAL FIX FOR HACKATHON VALIDATOR (LiteLLM Proxy)
 # Must use the exact variables the hackathon injects
 # ===================================================================
-API_BASE_URL = os.getenv("API_BASE_URL")
-API_KEY      = os.getenv("API_KEY")
-MODEL_NAME   = os.getenv("MODEL_NAME", "gpt-4o-mini")   # safe default
-
-# Safety check (required for validator)
-if not API_BASE_URL or not API_KEY:
+try:
+    API_BASE_URL = os.environ["API_BASE_URL"]
+    API_KEY      = os.environ["API_KEY"]
+except KeyError as e:
     raise ValueError(
-        "Missing API_BASE_URL or API_KEY. "
-        "Hackathon requires you to use their injected LiteLLM proxy variables."
+        f"Missing required environment variable: {e.args[0]}. "
+        "The hackathon validator requires API_BASE_URL and API_KEY to be set "
+        "to point to the LiteLLM proxy."
     )
 
-# Initialize client using hackathon's proxy
-client = OpenAI(
-    base_url=API_BASE_URL,
-    api_key=API_KEY
-)
-
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 
@@ -58,11 +52,6 @@ def run_task(task_difficulty: str) -> None:
         )
 
         try:
-            if not API_KEY:
-                raise RuntimeError(
-                    "Missing API key. Set OPENAI_API_KEY, HF_TOKEN, or NVIDIA_API_KEY."
-                )
-
             client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
             response = client.chat.completions.create(
                 model=MODEL_NAME,

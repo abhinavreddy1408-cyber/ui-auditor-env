@@ -15,7 +15,7 @@ def test_easy():
     )
     obs = env.step(action)
     print("Easy Score:", obs.current_score)
-    assert obs.current_score == 1.0
+    assert obs.current_score >= 0.999
 
 
 def test_medium():
@@ -30,7 +30,7 @@ def test_medium():
     )
     obs = env.step(action)
     print("Medium Score:", obs.current_score)
-    assert obs.current_score == 1.0
+    assert obs.current_score >= 0.999
 
 
 def test_hard():
@@ -70,7 +70,7 @@ def test_hard():
 
     assert obs is not None
     print("Hard Score:", obs.current_score)
-    assert obs.current_score == 1.0
+    assert obs.current_score >= 0.999
 
 
 if __name__ == "__main__":

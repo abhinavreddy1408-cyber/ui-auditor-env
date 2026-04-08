@@ -12,6 +12,9 @@ from openenv.core.env_server.types import (
 from pydantic import BaseModel, Field
 
 
+SCORE_EPS = 1e-3  # keep every reward strictly within (0, 1)
+
+
 class Action(OpenEnvAction):
     action_type: str = Field(
         ...,
@@ -43,15 +46,15 @@ class Observation(OpenEnvObservation):
         ..., description="Instructions for the current task"
     )
     current_score: float = Field(
-        0.0, description="Current dense reward score (0.0 to 1.0)"
+        0.0, description="Current dense reward score (strictly between 0 and 1)"
     )
     feedback: str = Field(..., description="Feedback from the environment")
 
 
 class RewardModel(BaseModel):
-    score: float = Field(..., description="Dense reward between 0.0 and 1.0")
+    score: float = Field(..., description="Dense reward strictly between 0 and 1")
     is_terminal: bool = Field(
-        ..., description="True if score == 1.0 or max steps reached"
+        ..., description="True if score ~= 1.0 or max steps reached"
     )
 
 
@@ -153,6 +156,15 @@ class UIAuditorEnv(Environment[Action, Observation, State]):
         self._state = State(episode_id=str(uuid4()), step_count=0)
         self.reset(task_difficulty=self.task_difficulty)
 
+    @staticmethod
+    def _bounded_score(raw_score: float) -> float:
+        """Clamp reward into the open interval (0, 1) expected by the evaluator."""
+        return max(SCORE_EPS, min(1 - SCORE_EPS, raw_score))
+
+    @property
+    def _perfect_threshold(self) -> float:
+        return 1 - SCORE_EPS
+
     def _select_task(self, task_name: Optional[str] = None) -> str:
         selected = (task_name or self.task_difficulty or "easy").lower()
         if selected not in {"easy", "medium", "hard"}:
@@ -202,10 +214,10 @@ class UIAuditorEnv(Environment[Action, Observation, State]):
 
     def _build_observation(self) -> Observation:
         score = self._calculate_reward()
-        done = score >= 1.0 or self.steps >= self.max_steps
+        done = score >= self._perfect_threshold or self.steps >= self.max_steps
 
-        if score >= 1.0:
-            feedback = "Task completed perfectly! (Score 1.0)"
+        if score >= self._perfect_threshold:
+            feedback = "Task completed perfectly! (Score ~1.0)"
         elif self.steps >= self.max_steps:
             feedback = "Max steps reached without fully resolving the issue."
         else:
@@ -299,32 +311,32 @@ class UIAuditorEnv(Environment[Action, Observation, State]):
         if self.task_difficulty == "easy":
             node = self._find_node(self.dom, "hero-img")
             if not node:
-                return 0.0
+                return self._bounded_score(0.0)
 
             alt = node.get("alt", "").lower().strip()
             if alt == "":
-                return 0.0
+                return self._bounded_score(0.0)
             if len(alt) < 5 or alt in {"image", "img", "picture"}:
-                return 0.5
-            return 1.0
+                return self._bounded_score(0.5)
+            return self._bounded_score(1.0)
 
         if self.task_difficulty == "medium":
             node = self._find_node(self.dom, "upgrade-btn")
             if not node:
-                return 0.0
+                return self._bounded_score(0.0)
 
             css = node.get("css", {})
             color = str(css.get("color", "")).upper().strip()
             if color == "#50C878":
-                return 1.0
+                return self._bounded_score(1.0)
             if color not in {"#E0F2E9", ""}:
-                return 0.5
-            return 0.0
+                return self._bounded_score(0.5)
+            return self._bounded_score(0.0)
 
         if self.task_difficulty == "hard":
             node = self._find_node(self.dom, "header-chaotic")
             if not node:
-                return 0.0
+                return self._bounded_score(0.0)
 
             score = 0.0
             main = self._find_node(node, "main-title")
@@ -342,9 +354,9 @@ class UIAuditorEnv(Environment[Action, Observation, State]):
             if children_ids == ["main-title", "subtitle", "sub-subtitle"]:
                 score += 0.4
 
-            return round(min(1.0, score), 2)
+            return self._bounded_score(round(min(1.0, score), 2))
 
-        return 0.0
+        return self._bounded_score(0.0)
 
     @property
     def state(self) -> State:
