@@ -1,20 +1,26 @@
 import os
 import json
 from openai import OpenAI
-from env import UIAuditorEnv, Action
 
-# ===================================================================
-# CRITICAL FIX FOR HACKATHON VALIDATOR (LiteLLM Proxy)
-# Must use the exact variables the hackathon injects
-# ===================================================================
-try:
-    API_BASE_URL = os.environ["API_BASE_URL"]
-    API_KEY      = os.environ["API_KEY"]
-except KeyError as e:
+from env import Action, UIAuditorEnv
+
+# -----------------------------------------------------------------------------
+# Robust env-var handling for HF validator
+# -----------------------------------------------------------------------------
+# The HF judge only guarantees OPENAI_API_KEY (and sometimes HF_TOKEN).
+# Older builds required API_BASE_URL/API_KEY; keep those but add sane defaults
+# so the container does not crash before the validator can join the network.
+# -----------------------------------------------------------------------------
+API_BASE_URL = (
+    os.getenv("API_BASE_URL")
+    or os.getenv("OPENAI_API_BASE")
+    or "https://api.openai.com/v1"
+)
+API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN")
+
+if not API_KEY:
     raise ValueError(
-        f"Missing required environment variable: {e.args[0]}. "
-        "The hackathon validator requires API_BASE_URL and API_KEY to be set "
-        "to point to the LiteLLM proxy."
+        "Missing API key. Set one of: API_KEY, OPENAI_API_KEY, or HF_TOKEN."
     )
 
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
