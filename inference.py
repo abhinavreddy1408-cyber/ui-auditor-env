@@ -34,7 +34,7 @@ def run_task(task_difficulty: str) -> None:
     )
 
     env = UIAuditorEnv(task_difficulty=task_difficulty)
-    obs = env.reset(task_difficulty=task_difficulty)
+    obs = env.reset()
 
     system_prompt = (
         "You are an Expert Frontend UI/UX and Accessibility Auditor agent operating "
@@ -46,7 +46,9 @@ def run_task(task_difficulty: str) -> None:
         "attributes or IDs."
     )
 
-    while not obs.done:
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
+    while not obs.is_done:
         step_num = env.steps + 1
         schema = Action.model_json_schema()
         user_content = (
@@ -58,7 +60,6 @@ def run_task(task_difficulty: str) -> None:
         )
 
         try:
-            client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
             response = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
@@ -80,11 +81,12 @@ def run_task(task_difficulty: str) -> None:
                 raw_content = raw_content[start_idx : end_idx + 1]
 
             action = Action.model_validate_json(raw_content)
-            obs = env.step(action)
+            obs, reward, done, info = env.step(action)
 
             print(
                 f"[STEP] step={step_num} action={action.action_type} "
-                f"node={action.node_id} score={obs.current_score}"
+                f"node={action.node_id} score={obs.current_score} "
+                f"done={done}"
             )
         except Exception as exc:
             print(f"[STEP] step={step_num} error={str(exc)}")
