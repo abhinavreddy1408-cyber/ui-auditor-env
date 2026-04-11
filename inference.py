@@ -106,8 +106,14 @@ def run_agent():
     for i in range(10):
         log(f"Step {i+1}/10 | Current Reward: {total_reward}")
         
+        # OpenEnv Schema: observations are nested
+        observation_block = obs.get("observation", {})
+        dom_to_analyze = observation_block.get("dom", {})
+        task_block = obs.get("task", {})
+        task_desc = task_block.get("description", "Fix accessibility issues")
+        
         system_prompt = "You are an Expert UI Auditor. Resolve accessibility flaws in the DOM."
-        user_content = f"DOM State: {json.dumps(obs.get('dom_state'))}\nTask: {obs.get('task_description')}"
+        user_content = f"DOM State: {json.dumps(dom_to_analyze)}\nTask: {task_desc}"
         
         try:
             response = client.chat.completions.create(
@@ -118,7 +124,6 @@ def run_agent():
             
             raw_action = json.loads(response.choices[0].message.content)
             # Map LLM format to validator's expected tool format
-            # Validator expects: tool, node_id, attribute, value
             action_to_send = {
                 "tool": raw_action.get("action_type", "update_attribute"),
                 "node_id": raw_action.get("node_id", "img_001"),
@@ -127,7 +132,7 @@ def run_agent():
             }
             
             obs = safe_post("/api/step", {"action": action_to_send, "task_difficulty": difficulty})
-            total_reward = obs.get("current_score", total_reward)
+            total_reward = obs.get("reward", total_reward)
             actions_taken.append(action_to_send)
             
             if obs.get("done", False):

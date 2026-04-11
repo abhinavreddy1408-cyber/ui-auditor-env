@@ -72,6 +72,38 @@ DOM_HARD = {
     }]
 }
 
+# Mandatory scenario for OpenEnv Validator compliance
+DOM_OPENENV = {
+    "id": "root", "type": "div",
+    "children": [
+        {
+            "id": "nav-block", "type": "nav", 
+            "content": "Home | About",
+            "css": {"margin": "10px"} 
+            # VIOLATION: <nav> should usually be in a <header> or have landmarks
+        },
+        {
+            "id": "hero-section", "type": "section",
+            "children": [
+                {
+                    "id": "img_001", "type": "img",
+                    "src": "hero.png",
+                    "alt": "", # VIOLATION: Missing alt text (WCAG 1.1.1)
+                    "css": {"width": "100%"}
+                },
+                {
+                    "id": "bad-contrast-div", "type": "div",
+                    "content": "Low contrast text here",
+                    "css": {
+                        "color": "#E1E1E1",      # Light grey on white background
+                        "background-color": "#FFFFFF" 
+                    } # VIOLATION: Low contrast (WCAG 1.4.3)
+                }
+            ]
+        }
+    ]
+}
+
 STEP_PENALTY = 0.01
 _SCORE_MIN   = 0.05
 _SCORE_MAX   = 0.95
@@ -110,6 +142,13 @@ class UIAuditorEnv:
                 "Semantic Structuring: In 'header-chaotic', change main-title to h1, "
                 "subtitle to h2, sub-subtitle to h3, then reorder: "
                 "[main-title, subtitle, sub-subtitle]."
+            )
+        elif self.task_difficulty == "openenv":
+            self.dom = copy.deepcopy(DOM_OPENENV)
+            self.task_desc = (
+                "OpenEnv Audit Task: Fix the 3 core WCAG issues. "
+                "1. Add alt text to img_001, 2. Fix contrast on bad-contrast-div, "
+                "3. Ensure semantic hierarchy."
             )
         else:
             # Default to easy if invalid
@@ -212,6 +251,22 @@ def _calculate_raw_reward(dom: dict, task_difficulty: str) -> float:
         if subsub and subsub.get("type", "").lower() == "h3": score += 0.2
         ids = [c.get("id") for c in node.get("children", [])]
         if ids == ["main-title", "subtitle", "sub-subtitle"]: score += 0.4
+    elif task_difficulty == "openenv":
+        # Score 0.3 for each fixed issue, +0.1 for perfect
+        score = 0.0
+        # 1. Alt text on img_001
+        img = find_node(dom, "img_001")
+        if img and img.get("alt") != "":
+            score += 0.3
+        # 2. Contrast on bad-contrast-div
+        div = find_node(dom, "bad-contrast-div")
+        if div and div.get("css", {}).get("color") != "#E1E1E1":
+            score += 0.3
+        # 3. Semantic hierarchy (simple check for nav-block mutation)
+        nav = find_node(dom, "nav-block")
+        if nav and nav.get("css", {}).get("margin") != "10px":
+            # (Assuming user moves it or changes it)
+            score += 0.3
         return round(min(1.0, score), 4)
 
     return 0.0
