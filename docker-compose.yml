@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # The environment server (FastAPI)
+  env:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "7860:7860"
+    healthcheck:
+      # Aggressive logic to ensure uvicorn is ready before agent joins
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+    networks:
+      - agent_network
+    environment:
+      - PORT=8000
+
+  # The AI Agent (inference.py)
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python inference.py
+    depends_on:
+      env:
+        condition: service_healthy
+    environment:
+      - ENV_BASE_URL=http://env:8000
+      - TASK_DIFFICULTY=easy
+      - API_BASE_URL=${API_BASE_URL}
+      - API_KEY=${API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MODEL_NAME=gemini/gemini-2.0-flash
+    networks:
+      - agent_network
+
+networks:
+  agent_network:
+    driver: bridge

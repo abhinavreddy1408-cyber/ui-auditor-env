@@ -4,7 +4,7 @@ emoji: 🚀
 colorFrom: green
 colorTo: yellow
 sdk: docker
-app_port: 7860
+app_port: 8000
 ---
 # 🎨 Automated Web UI & Accessibility Auditor
 <image-card alt="License" src="https://img.shields.io/badge/license-MIT-green" ></image-card>

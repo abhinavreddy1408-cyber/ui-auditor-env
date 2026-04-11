@@ -24,16 +24,27 @@ RUN npm run build
 # Highly Optimized for Scalar x Meta 2 vCPU / 8 GB RAM Limit!
 # ==============================================================================
 FROM python:3.11-slim-bookworm
+
+# Install curl for healthchecks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONPATH=/app \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
+
 WORKDIR /app
+
 # Safely copy only compiled dependencies
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=frontend-builder /web/dist /app/web/dist
+
 # Copy simulator environment payloads
 COPY . .
-# Expose the OpenEnv HTTP API port
+
+# Expose the internal API port (8000) and public UI port (7860)
+EXPOSE 8000
 EXPOSE 7860
-# Launch the OpenEnv-compatible API server
+
+# Launch the OpenEnv-compatible API server on port 8000
 CMD ["python", "server/app.py"]

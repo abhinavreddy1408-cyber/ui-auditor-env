@@ -123,6 +123,15 @@ async def list_tasks():
     }
 
 
+@app.get("/health")
+async def health_check_internal():
+    """
+    Required for Docker healthcheck.
+    Without this, inference.py cannot verify the env is ready.
+    """
+    return {"status": "healthy", "service": "web-auditor-api"}
+
+
 @app.post("/api/reset")
 @app.post("/ui/reset")
 async def ui_reset(payload: ResetRequest):
@@ -230,7 +239,8 @@ if DIST_PATH.exists():
 
 
 def main() -> None:
-    port = int(os.getenv("PORT", "7860"))
+    # Internal API typically runs on port 8000
+    port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 

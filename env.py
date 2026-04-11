@@ -93,8 +93,11 @@ class UIAuditorEnv:
         self.max_steps = 15
         self.reset()
 
-    def reset(self) -> Observation:
+    def reset(self, task_difficulty: Optional[str] = None) -> Observation:
         self.steps = 0
+        if task_difficulty:
+            self.task_difficulty = task_difficulty.lower()
+
         if self.task_difficulty == "easy":
             self.dom = copy.deepcopy(DOM_EASY)
             self.task_desc = (
