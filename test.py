@@ -15,7 +15,11 @@ def test_easy():
     )
     obs, reward, done, info = env.step(action)
     print("Easy Score:", obs.current_score)
+<<<<<<< Updated upstream
     assert obs.current_score >= 0.94
+=======
+    assert obs.current_score >= 0.999
+>>>>>>> Stashed changes
 
 
 def test_medium():
@@ -30,7 +34,11 @@ def test_medium():
     )
     obs, reward, done, info = env.step(action)
     print("Medium Score:", obs.current_score)
+<<<<<<< Updated upstream
     assert obs.current_score >= 0.94
+=======
+    assert obs.current_score >= 0.999
+>>>>>>> Stashed changes
 
 
 def test_hard():
@@ -70,7 +78,11 @@ def test_hard():
 
     assert obs is not None
     print("Hard Score:", obs.current_score)
+<<<<<<< Updated upstream
     assert obs.current_score >= 0.94
+=======
+    assert obs.current_score >= 0.999
+>>>>>>> Stashed changes
 
 
 if __name__ == "__main__":

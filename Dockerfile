@@ -1,30 +1,14 @@
 # Use a slim Python 3.11 builder to keep images extremely compact
 FROM python:3.11-slim-bookworm AS builder
-# Set optimal environmental variables to prevent unnecessary cache bloat
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 WORKDIR /app
-# Install only what we exactly need layer-by-layer
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ------------------------------------------------------------------------------
-# Frontend build stage (Node 20)
-# ------------------------------------------------------------------------------
-FROM node:20-bullseye-slim AS frontend-builder
-WORKDIR /web
-COPY web/package*.json ./
-RUN npm install
-COPY web .
-RUN npm run build
-
-# ==============================================================================
 # Final Execution Stage
-# Highly Optimized for Scalar x Meta 2 vCPU / 8 GB RAM Limit!
-# ==============================================================================
 FROM python:3.11-slim-bookworm
-
 # Install curl for healthchecks
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
@@ -33,18 +17,14 @@ ENV PYTHONPATH=/app \
     PORT=8000
 
 WORKDIR /app
-
-# Safely copy only compiled dependencies
+# Copy compiled dependencies
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=frontend-builder /web/dist /app/web/dist
-
-# Copy simulator environment payloads
 COPY . .
 
 # Expose the internal API port (8000) and public UI port (7860)
 EXPOSE 8000
 EXPOSE 7860
 
-# Launch the OpenEnv-compatible API server on port 8000
+# Launch the OpenEnv-compatible API server
 CMD ["python", "server/app.py"]

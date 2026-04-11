@@ -129,7 +129,11 @@ def run_agent_test():
 
     try:
         process = subprocess.run(
+<<<<<<< Updated upstream
             AGENT_CMD,
+=======
+            [sys.executable, "inference.py"],
+>>>>>>> Stashed changes
             capture_output=True,
             text=True,
             timeout=AGENT_TIMEOUT,
@@ -163,6 +167,7 @@ def run_agent_test():
         else:
             log_fail("Reward Clamping", f"Reward {reward} out of bounds")
 
+<<<<<<< Updated upstream
         # 5. Action tools valid
         actions = result["actions"]
         if len(actions) > 0:
@@ -180,6 +185,8 @@ def run_agent_test():
         else:
             log_fail("Action Count", "Zero actions taken")
 
+=======
+>>>>>>> Stashed changes
         return result
 
     except subprocess.TimeoutExpired:
@@ -189,6 +196,7 @@ def run_agent_test():
     return None
 
 # =============================================================================
+<<<<<<< Updated upstream
 # PHASE 5: DOCKER TEST
 # =============================================================================
 
@@ -249,6 +257,8 @@ def print_report(results: list):
     print(f"Overall: {passed}/{total} PASSED - {'Safe to submit' if passed == total else 'Review failures'}")
 
 # =============================================================================
+=======
+>>>>>>> Stashed changes
 # MAIN
 # =============================================================================
 
@@ -262,7 +272,10 @@ def main():
             report.append(["Server Health", "[PASS]", "Healthy on port 8000"])
         except Exception as e:
             report.append(["Server Health", "[FAIL]", str(e)])
+<<<<<<< Updated upstream
             print_report(report)
+=======
+>>>>>>> Stashed changes
             return
 
         # Phase 2
@@ -277,6 +290,7 @@ def main():
         if agent_result:
             report.append(["inference.py stdout JSON", "[PASS]", "Valid schema"])
             report.append(["Reward clamping", "[PASS]", f"0.05 <= {agent_result['total_reward']} <= 0.95"])
+<<<<<<< Updated upstream
             report.append(["Action tools valid", "[PASS]", f"{len(agent_result['actions'])} actions"])
         else:
             report.append(["inference.py stdout JSON", "[FAIL]", "Parse or schema error"])
@@ -294,6 +308,10 @@ def main():
 
         # Phase 6
         print_report(report)
+=======
+        else:
+            report.append(["inference.py stdout JSON", "[FAIL]", "Parse or schema error"])
+>>>>>>> Stashed changes
 
     finally:
         if server_proc:

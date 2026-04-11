@@ -10,7 +10,6 @@ services:
       - "8000:8000"
       - "7860:7860"
     healthcheck:
-      # Aggressive logic to ensure uvicorn is ready before agent joins
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 3s
       timeout: 5s
