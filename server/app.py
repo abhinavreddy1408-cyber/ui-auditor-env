@@ -78,6 +78,10 @@ async def step(request: Request):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-if __name__ == "__main__":
+def main() -> None:
+    """The entry point for the validator to start the environment."""
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+if __name__ == "__main__":
+    main()
