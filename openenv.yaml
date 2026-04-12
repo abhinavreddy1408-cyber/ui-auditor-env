@@ -20,11 +20,22 @@ tasks:
     description: "Add descriptive alt text to hero image"
     max_steps: 15
     reward_threshold: 1.0
+    grader: "graders.alt_text_grader"
+
   - id: "medium"
     description: "Fix CTA button color contrast to WCAG standards using #50C878"
     max_steps: 15
     reward_threshold: 1.0
+    grader: "graders.contrast_grader"
+
   - id: "hard"
     description: "Reorder and fix semantic header structure (H1 > H2 > H3)"
     max_steps: 15
     reward_threshold: 1.0
+    grader: "graders.hierarchy_grader"
+
+  - id: "extra"
+    description: "Add accessibility labels or aria-label to form inputs"
+    max_steps: 15
+    reward_threshold: 1.0
+    grader: "graders.label_grader"

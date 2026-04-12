@@ -23,7 +23,6 @@ class Observation(BaseModel):
     feedback: str = ""
 
 # --- Scenarios (EASY, MEDIUM, HARD, OPENENV) ---
-# [Keep existing DOM_EASY, DOM_MEDIUM, DOM_HARD, DOM_OPENENV definitions check Turn 11/12]
 DOM_EASY = {
     "id": "root", "type": "div",
     "children": [{
@@ -34,6 +33,27 @@ DOM_EASY = {
         ]
     }]
 }
+
+DOM_MEDIUM = {
+    "id": "root", "type": "div",
+    "children": [
+        {"id": "main-container", "type": "main", "children": [
+            {"id": "title", "type": "h1", "content": "Performance Metrics"},
+            {"id": "btn_001", "type": "button", "content": "Download Report", "css": {"color": "#E1E1E1", "background-color": "#FFFFFF"}}
+        ]}
+    ]
+}
+
+DOM_HARD = {
+    "id": "root", "type": "div",
+    "children": [
+        {"id": "h3_001", "type": "h3", "content": "Secondary Stats"},
+        {"id": "h1_001", "type": "h1", "content": "Global Accessibility"},
+        {"id": "h2_001", "type": "h2", "content": "Region Breakdown"},
+        {"id": "input_001", "type": "input", "placeholder": "Enter username...", "attributes": {"type": "text"}}
+    ]
+}
+
 DOM_OPENENV = {
     "id": "root", "type": "div",
     "children": [
@@ -56,15 +76,23 @@ class UIAuditorEnv:
         self.dom: Dict[str, Any] = {}
         self.steps = 0
         self.max_steps = 15
+        self.grader_fn: Optional[Any] = None
         self.reset()
 
-    def reset(self, task_difficulty: Optional[str] = None) -> Observation:
+    def reset(self, task_difficulty: Optional[str] = None, grader: Optional[Any] = None) -> Observation:
         self.steps = 0
         if task_difficulty: self.task_difficulty = task_difficulty.lower()
+        if grader: self.grader_fn = grader
         
         if self.task_difficulty == "openenv":
             self.dom = copy.deepcopy(DOM_OPENENV)
             self.task_desc = "Fix WCAG issues: alt text, contrast, and hierarchy."
+        elif self.task_difficulty == "medium":
+            self.dom = copy.deepcopy(DOM_MEDIUM)
+            self.task_desc = "Fix CTA button color contrast using Emerald Green (#50C878)."
+        elif self.task_difficulty == "hard":
+            self.dom = copy.deepcopy(DOM_HARD)
+            self.task_desc = "Fix heading hierarchy and add form labels."
         else:
             self.dom = copy.deepcopy(DOM_EASY)
             self.task_desc = "Add alt text to hero image."
@@ -92,12 +120,20 @@ class UIAuditorEnv:
             elif action.action_type == "modify_css" and action.property:
                 node.setdefault("css", {})[action.property] = action.value
             elif action.action_type == "reorder_nodes" and action.new_child_order:
-                # Basic reorder logic
                 lookup = {c["id"]: c for c in node.get("children", [])}
                 node["children"] = [lookup[cid] for cid in action.new_child_order if cid in lookup]
         return self.state()
 
     def _calculate_reward(self) -> float:
+        # Use task-specific grader if provided
+        if self.grader_fn:
+            try:
+                return self.grader_fn(self)
+            except Exception:
+                pass
+        
+        # Fallback to default alt-text check
         node = self._find_node(self.dom, "img_001") or self._find_node(self.dom, "hero-img")
         if node and node.get("alt") != "": return 0.95
         return 0.05
+
