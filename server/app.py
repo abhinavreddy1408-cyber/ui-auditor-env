@@ -23,6 +23,14 @@ def to_openenv_dom(node_dict: dict) -> dict:
         "children": [to_openenv_dom(c) for c in node_dict.get("children", [])]
     }
 
+@app.get("/")
+def home():
+    return {
+        "message": "UI Auditor Environment API is running.",
+        "endpoints": ["/health", "/reset", "/step", "/validate"],
+        "docs": "/docs"
+    }
+
 @app.get("/health")
 def health(): return {"status": "healthy"}
 

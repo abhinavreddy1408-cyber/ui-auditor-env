@@ -91,7 +91,12 @@ def safe_post(endpoint, payload):
         return {"error": "requests_not_available"}
 
     try:
-        r = requests.post("%s%s" % (ENV_BASE_URL, endpoint), json=payload, timeout=30)
+        # Sanitize URL to avoid double slashes
+        base = ENV_BASE_URL.rstrip("/")
+        path = endpoint.lstrip("/")
+        full_url = "%s/%s" % (base, path)
+        
+        r = requests.post(full_url, json=payload, timeout=30)
         r.raise_for_status()
         data = r.json()
         if isinstance(data, dict):
