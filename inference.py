@@ -62,18 +62,28 @@ def output_safe_default(task_name):
 # ENV HELPERS
 # -----------------------------------------
 def wait_for_env_container():
+    global ENV_BASE_URL
     if requests is None:
         safe_stderr("(WARN) requests is not available")
         return False
 
-    for _ in range(8):
-        try:
-            r = requests.get("%s/health" % ENV_BASE_URL, timeout=3)
-            if r.status_code == 200:
-                return True
-        except Exception as e:
-            safe_stderr("(INFO) health check failed: %s" % e)
-        time.sleep(2)
+    # Try ENV_BASE_URL first, then fallback to localhost if using the default Docker name
+    urls_to_try = [ENV_BASE_URL]
+    if "env:8000" in ENV_BASE_URL:
+        urls_to_try.append(ENV_BASE_URL.replace("env:8000", "localhost:8000"))
+
+    for url in urls_to_try:
+        for _ in range(5):
+            try:
+                r = requests.get("%s/health" % url, timeout=3)
+                if r.status_code == 200:
+                    ENV_BASE_URL = url # Update global URL to the working one
+                    return True
+            except Exception as e:
+                pass
+            time.sleep(2)
+    
+    safe_stderr("(ERROR) could not reach env container on %s" % urls_to_try)
     return False
 
 def safe_post(endpoint, payload):
