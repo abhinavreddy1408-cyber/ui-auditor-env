@@ -54,6 +54,15 @@ TASKS = {
         "wcag_criterion": "1.3.1",
         "grader": graders.label_grader,
     },
+    "landmarks": {
+        "id": "landmarks",
+        "type": "fix_landmarks",
+        "description": "Add semantic ARIA landmarks (nav, main, header, footer) to the page structure",
+        "difficulty": "medium",
+        "target_node_id": "root",
+        "wcag_criterion": "1.3.1",
+        "grader": graders.landmark_grader,
+    },
 }
 
 

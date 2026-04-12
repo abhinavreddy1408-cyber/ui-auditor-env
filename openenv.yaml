@@ -39,3 +39,9 @@ tasks:
     max_steps: 15
     reward_threshold: 1.0
     grader: "graders.label_grader"
+
+  - id: "landmarks"
+    description: "Add semantic ARIA landmarks (nav, main, header, footer) to the page structure"
+    max_steps: 15
+    reward_threshold: 1.0
+    grader: "graders.landmark_grader"

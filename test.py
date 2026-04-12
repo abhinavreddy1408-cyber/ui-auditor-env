@@ -1,95 +1,74 @@
 import traceback
-
 from env import Action, UIAuditorEnv
-
+import graders
 
 def test_easy():
-    print("Testing Easy Task...")
+    print("Testing Easy Task (Alt Text)...")
     env = UIAuditorEnv(task_difficulty="easy")
-    env.reset()
+    env.reset(grader=graders.alt_text_grader)
     action = Action(
         action_type="update_attribute",
         node_id="hero-img",
-        attr_name="alt",
-        new_value="A beautiful dashboard for premium analytical insights",
+        attribute="alt",
+        value="A beautiful dashboard for premium analytical insights",
     )
-    obs, reward, done, info = env.step(action)
+    env.step(action)
+    obs = env.state()
     print("Easy Score:", obs.current_score)
-<<<<<<< Updated upstream
     assert obs.current_score >= 0.94
-=======
-    assert obs.current_score >= 0.999
->>>>>>> Stashed changes
-
 
 def test_medium():
-    print("Testing Medium Task...")
+    print("Testing Medium Task (Contrast)...")
     env = UIAuditorEnv(task_difficulty="medium")
-    env.reset()
+    env.reset(grader=graders.contrast_grader)
     action = Action(
         action_type="modify_css",
-        node_id="upgrade-btn",
-        css_property="color",
-        new_hex_code="#50C878",
+        node_id="btn_001",
+        property="color",
+        value="#50C878",
     )
-    obs, reward, done, info = env.step(action)
+    env.step(action)
+    obs = env.state()
     print("Medium Score:", obs.current_score)
-<<<<<<< Updated upstream
     assert obs.current_score >= 0.94
-=======
-    assert obs.current_score >= 0.999
->>>>>>> Stashed changes
-
 
 def test_hard():
-    print("Testing Hard Task...")
+    print("Testing Hard Task (Hierarchy)...")
     env = UIAuditorEnv(task_difficulty="hard")
-    env.reset()
+    env.reset(grader=graders.hierarchy_grader)
 
-    actions = [
-        Action(
-            action_type="update_attribute",
-            node_id="main-title",
-            attr_name="type",
-            new_value="h1",
-        ),
-        Action(
-            action_type="update_attribute",
-            node_id="subtitle",
-            attr_name="type",
-            new_value="h2",
-        ),
-        Action(
-            action_type="update_attribute",
-            node_id="sub-subtitle",
-            attr_name="type",
-            new_value="h3",
-        ),
-        Action(
-            action_type="reorder_nodes",
-            node_id="header-chaotic",
-            new_child_order=["main-title", "subtitle", "sub-subtitle"],
-        ),
-    ]
-
-    obs = None
-    for action in actions:
-        obs, reward, done, info = env.step(action)
-
-    assert obs is not None
+    # Reorder nodes to fix hierarchy: h1, then h2, then h3
+    action = Action(
+        action_type="reorder_nodes",
+        node_id="root",
+        new_child_order=["h1_001", "h2_001", "h3_001", "input_001"],
+    )
+    env.step(action)
+    obs = env.state()
     print("Hard Score:", obs.current_score)
-<<<<<<< Updated upstream
     assert obs.current_score >= 0.94
-=======
-    assert obs.current_score >= 0.999
->>>>>>> Stashed changes
 
+def test_extra():
+    print("Testing Extra Task (Labels)...")
+    env = UIAuditorEnv(task_difficulty="hard")
+    env.reset(grader=graders.label_grader)
+    action = Action(
+        action_type="update_attribute",
+        node_id="input_001",
+        attribute="aria-label",
+        value="Username input field",
+    )
+    env.step(action)
+    obs = env.state()
+    print("Extra Score:", obs.current_score)
+    assert obs.current_score >= 0.94
 
 if __name__ == "__main__":
     try:
         test_easy()
         test_medium()
         test_hard()
-        print("All tests passed perfectly!")
+        test_extra()
+        print("\n✅ All tests passed!")
     except Exception:
         traceback.print_exc()

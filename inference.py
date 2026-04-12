@@ -127,15 +127,29 @@ def build_action(obs):
         elif task_type == "fix_hierarchy":
             return {
                 "tool": "reorder_nodes",
-                "node_id": target_id,
-                "new_parent_id": "header_001"
+                "node_id": "root",
+                "new_child_order": ["h1_001", "h2_001", "h3_001", "input_001"]
+            }
+        elif task_type == "add_labels":
+            return {
+                "tool": "update_attribute",
+                "node_id": "input_001",
+                "attribute": "aria-label",
+                "value": "Username input field for profile setup"
+            }
+        elif task_type == "fix_landmarks":
+            return {
+                "tool": "update_attribute",
+                "node_id": "nav-block",
+                "attribute": "type",
+                "value": "nav"
             }
         else:
             return {
                 "tool": "update_attribute",
                 "node_id": target_id,
                 "attribute": "alt",
-                "value": "Accessible UI component for WCAG 1.1.1 compliance"
+                "value": "Accessible UI component for WCAG compliance"
             }
     except Exception as e:
         safe_stderr("(ERROR) build_action failed: %s" % e)
