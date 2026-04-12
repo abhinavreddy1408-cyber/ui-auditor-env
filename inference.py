@@ -1,80 +1,102 @@
 import os
 import sys
 import time
-import requests
-import json
 
-# -----------------------------------------
-# LIBRARY STDOUT SUPPRESSION
-# -----------------------------------------
-os.environ["LITELLM_LOG"] = "ERROR"
-os.environ["LITELLM_VERBOSE"] = "False"
+try:
+    import requests
+except Exception:
+    requests = None
 
 # -----------------------------------------
 # CONFIG
 # -----------------------------------------
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://env:8000")
-MOCK_MODE    = os.environ.get("MOCK_MODE", "false").lower() == "true"
-TASK_NAME    = "ui_accessibility_audit"
+MOCK_MODE = os.environ.get("MOCK_MODE", "false").lower() == "true"
+DEFAULT_TASK_NAME = "ui_accessibility_audit"
+# Suppress litellm logs to satisfy validator
+os.environ["LITELLM_LOG"] = "OFF"
 
 # -----------------------------------------
-# HELPERS
+# SAFE OUTPUT HELPERS (PY2 + PY3)
 # -----------------------------------------
-
-def clamp(value: float) -> float:
-    """Clamp reward/score between 0.05 and 0.95."""
+def safe_stdout(line):
     try:
-        return max(0.05, min(0.95, float(value)))
-    except (TypeError, ValueError):
+        # Using print with flush=True to satisfy validator check
+        print(str(line), flush=True)
+    except Exception:
+        pass
+
+def safe_stderr(line):
+    try:
+        sys.stderr.write(str(line) + "\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+
+def clamp(value):
+    try:
+        v = float(value)
+        if v < 0.05:
+            return 0.05
+        if v > 0.95:
+            return 0.95
+        return v
+    except Exception:
         return 0.05
 
-def print_start(task_name: str):
-    """Validator looks for this EXACT line at the start."""
-    print(f"[START] task={task_name}", flush=True)
+def print_start(task_name):
+    safe_stdout("[START] task=%s" % task_name)
 
-def print_step(step: int, reward: float):
-    """Validator looks for this EXACT format per step."""
-    print(f"[STEP] step={step} reward={round(float(reward), 4)}", flush=True)
+def print_step(step, reward):
+    safe_stdout("[STEP] step=%d reward=%.4f" % (int(step), float(reward)))
 
-def print_end(task_name: str, score: float, steps: int):
-    """Validator looks for this EXACT line at the end."""
-    print(f"[END] task={task_name} score={round(float(score), 4)} steps={steps}", flush=True)
+def print_end(task_name, score, steps):
+    safe_stdout("[END] task=%s score=%.4f steps=%d" % (task_name, float(score), int(steps)))
 
-def output_safe_default():
-    """Emergency fallback for validator parsing."""
-    print_start(TASK_NAME)
+def output_safe_default(task_name):
+    print_start(task_name)
     print_step(1, 0.05)
-    print_end(TASK_NAME, 0.05, 1)
+    print_end(task_name, 0.05, 1)
 
-def wait_for_env_container() -> bool:
-    """Poll the environment health endpoint."""
-    print("(INFO) Waiting for env container...", file=sys.stderr, flush=True)
-    for attempt in range(8):
+# -----------------------------------------
+# ENV HELPERS
+# -----------------------------------------
+def wait_for_env_container():
+    if requests is None:
+        safe_stderr("(WARN) requests is not available")
+        return False
+
+    for _ in range(8):
         try:
-            r = requests.get(f"{ENV_BASE_URL}/health", timeout=3)
+            r = requests.get("%s/health" % ENV_BASE_URL, timeout=3)
             if r.status_code == 200:
-                print(f"(INFO) Container ready after {attempt+1} attempts", file=sys.stderr, flush=True)
                 return True
-        except Exception:
-            pass
-        print(f"(INFO) Attempt {attempt+1}/8 - retrying...", file=sys.stderr, flush=True)
+        except Exception as e:
+            safe_stderr("(INFO) health check failed: %s" % e)
         time.sleep(2)
     return False
 
-def safe_post(endpoint: str, payload: dict) -> dict:
-    """Safe wrapper for POST requests."""
+def safe_post(endpoint, payload):
+    if requests is None:
+        return {"error": "requests_not_available"}
+
     try:
-        r = requests.post(f"{ENV_BASE_URL}{endpoint}", json=payload, timeout=30)
+        r = requests.post("%s%s" % (ENV_BASE_URL, endpoint), json=payload, timeout=30)
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+        if isinstance(data, dict):
+            return data
+        return {"error": "invalid_json_response"}
     except Exception as e:
-        print(f"(ERROR) {endpoint} failed: {e}", file=sys.stderr, flush=True)
+        safe_stderr("(ERROR) %s failed: %s" % (endpoint, e))
         return {"error": str(e)}
 
-def build_action(obs: dict) -> dict:
-    """Map task type to valid tool action."""
+def build_action(obs):
     try:
-        task = obs.get("task", {})
+        task = {}
+        if isinstance(obs, dict):
+            task = obs.get("task", {}) or {}
+
         task_type = task.get("type", "")
         target_id = task.get("target_node_id", "img_001")
 
@@ -106,78 +128,84 @@ def build_action(obs: dict) -> dict:
                 "value": "Accessible UI component for WCAG 1.1.1 compliance"
             }
     except Exception as e:
-        print(f"(ERROR) build_action failed: {e}", file=sys.stderr, flush=True)
-        return {"tool": "update_attribute", "node_id": "img_001", "attribute": "alt", "value": "Accessible image"}
+        safe_stderr("(ERROR) build_action failed: %s" % e)
+        return {
+            "tool": "update_attribute",
+            "node_id": "img_001",
+            "attribute": "alt",
+            "value": "Accessible image"
+        }
 
 # -----------------------------------------
-# MAIN AGENT LOOP
+# MAIN
 # -----------------------------------------
-
 def run_agent():
-    """Main execution logic for the agent."""
-    if MOCK_MODE:
-        print_start(TASK_NAME)
-        print_step(1, 0.5)
-        print_end(TASK_NAME, 0.5, 1)
-        return
+    task_name = DEFAULT_TASK_NAME
 
-    if not wait_for_env_container():
-        output_safe_default()
-        return
-
-    # Reset environment
-    obs = safe_post("/reset", {"task_difficulty": "openenv"})
-    if "error" in obs:
-        output_safe_default()
-        return
-
-    # Derive task name from response
-    task_data = obs.get("task", {})
-    task_name = task_data.get("id", TASK_NAME)
-
-    # Print START block
+    # Emit structured output immediately so the validator always sees stdout blocks.
     print_start(task_name)
 
-    step_count = 0
-    total_reward = 0.0
-    done = False
+    if MOCK_MODE:
+        print_step(1, 0.5)
+        print_end(task_name, 0.5, 1)
+        return
 
-    # Main Agent Loop
-    while not done and step_count < 10:
-        step_count += 1
-        action = build_action(obs)
-        
-        result = safe_post("/step", {"action": action})
-        
-        if "error" in result:
-            reward = 0.05
-            done = True
-        else:
-            reward = clamp(result.get("reward", 0.05))
-            done = result.get("done", False)
-            obs = result
-        
-        total_reward += reward
-        print_step(step_count, reward)
+    try:
+        if requests is None:
+            print_step(1, 0.05)
+            print_end(task_name, 0.05, 1)
+            return
 
-    # Final score Calculation (clamped average)
-    denom = max(step_count, 1)
-    final_score = clamp(total_reward / denom)
-    
-    # Print END block
-    print_end(task_name, final_score, step_count)
+        if not wait_for_env_container():
+            print_step(1, 0.05)
+            print_end(task_name, 0.05, 1)
+            return
 
-# -----------------------------------------
-# ENTRY POINT
-# -----------------------------------------
+        obs = safe_post("/reset", {"task_difficulty": "openenv"})
+        if "error" in obs:
+            print_step(1, 0.05)
+            print_end(task_name, 0.05, 1)
+            return
+
+        # The task name is printed in [START] block at the beginning.
+        # To maintain consistency with [END] block (required by validator),
+        # we do not update task_name from the response.
+
+        step_count = 0
+        total_reward = 0.0
+        done = False
+
+        while not done and step_count < 10:
+            step_count += 1
+            action = build_action(obs)
+            result = safe_post("/step", {"action": action})
+
+            if "error" in result:
+                reward = 0.05
+                done = True
+            else:
+                reward = clamp(result.get("reward", 0.05))
+                done = bool(result.get("done", False))
+                obs = result
+
+            total_reward += reward
+            print_step(step_count, reward)
+
+        final_score = clamp(total_reward / max(step_count, 1))
+        print_end(task_name, final_score, step_count)
+
+    except Exception as e:
+        safe_stderr("(FATAL) %s" % e)
+        output_safe_default(task_name)
 
 if __name__ == "__main__":
     try:
         run_agent()
     except Exception as e:
-        print(f"(FATAL) {e}", file=sys.stderr, flush=True)
-        output_safe_default()
+        safe_stderr("(UNCAUGHT) %s" % e)
+        output_safe_default(DEFAULT_TASK_NAME)
     finally:
-        sys.exit(0)
-
-
+        try:
+            sys.exit(0)
+        except Exception:
+            pass
