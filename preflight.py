@@ -7,6 +7,7 @@ import json
 import sys
 import os
 import time
+import re
 
 # Handle Windows encoding for health icons
 if os.name == "nt":
@@ -96,7 +97,6 @@ except Exception as e:
 # STEP 5: Validate endpoint
 try:
     print("   Testing GET /validate...")
-    # Support both GET and POST for robustness during testing
     r = requests.get(f"{BASE}/validate", timeout=5)
     if r.status_code == 405: # Method not allowed, try POST
         r = requests.post(f"{BASE}/validate", timeout=5)
@@ -121,28 +121,29 @@ try:
     proc = subprocess.run([sys.executable, "inference.py"], capture_output=True, text=True, timeout=120, env=env)
     check("inference.py exit code 0", proc.returncode == 0, f"got exit code: {proc.returncode}", critical=True)
 
-    try:
-        # Find JSON payload in stdout
-        output = json.loads(proc.stdout.strip().splitlines()[-1])
-        check("stdout is valid JSON", True, "parsed OK")
+    stdout = proc.stdout
+    lines = [l.strip() for l in stdout.splitlines() if l.strip()]
+    
+    has_start = any(l.startswith("[START]") for l in lines)
+    has_step  = any(l.startswith("[STEP]") for l in lines)
+    has_end   = any(l.startswith("[END]") for l in lines)
 
-        check("has actions key", isinstance(output.get("actions"), list), f"count: {len(output.get('actions', []))}")
-        check("has total_reward key", isinstance(output.get("total_reward"), float), f"value: {output.get('total_reward')}")
-        check("has episodes_completed key", isinstance(output.get("episodes_completed"), int), f"value: {output.get('episodes_completed')}")
-        check("has final_dom_state key", isinstance(output.get("final_dom_state"), dict), "Dict present")
+    check("Has [START] block", has_start, "Found [START]" if has_start else "Missing [START]", critical=True)
+    check("Has [STEP] block", has_step, "Found [STEP]" if has_step else "Missing [STEP]")
+    check("Has [END] block", has_end, "Found [END]" if has_end else "Missing [END]", critical=True)
 
-        reward = output.get("total_reward", 0)
-        check("reward clamped 0.05-0.95", 0.05 <= reward <= 0.95, f"value: {reward}")
+    if has_end:
+        end_line = [l for l in lines if l.startswith("[END]")][0]
+        match = re.search(r"score=([\d.]+)", end_line)
+        if match:
+            score = float(match.group(1))
+            check("Reward Clamped 0.05-0.95", 0.05 <= score <= 0.95, f"score: {score}")
+        else:
+            check("Reward Clamped", False, "Score not found in [END]")
 
-        actions = output.get("actions", [])
-        check("at least 1 action", len(actions) >= 1, f"count: {len(actions)}")
-
-        VALID_TOOLS = ["update_attribute", "modify_css", "reorder_nodes"]
-        all_valid = all(a.get("tool") in VALID_TOOLS for a in actions)
-        check("all tools valid", all_valid, f"tools used: {[a.get('tool') for a in actions]}")
-
-    except Exception as e:
-        check("stdout JSON validation", False, f"error: {e} | raw: {proc.stdout[:100]}", critical=True)
+    # Pollution check
+    polluted = [l for l in lines if not any(l.startswith(t) for t in ["[START]", "[STEP]", "[END]"])]
+    check("No Stdout Pollution", len(polluted) == 0, f"extra lines: {polluted}", critical=True)
 
 except Exception as e:
     check("inference.py execution", False, str(e), critical=True)
@@ -181,3 +182,4 @@ else:
     for r in critical_fails:
         print(f"  ❌ {r['name']}: {r['detail']}")
     sys.exit(1)
+

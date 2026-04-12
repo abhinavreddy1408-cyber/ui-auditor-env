@@ -4,29 +4,22 @@ import time
 import requests
 import json
 
-# ─────────────────────────────────────────
+# -----------------------------------------
 # LIBRARY STDOUT SUPPRESSION
-# ─────────────────────────────────────────
+# -----------------------------------------
 os.environ["LITELLM_LOG"] = "ERROR"
 os.environ["LITELLM_VERBOSE"] = "False"
 
-try:
-    import litellm
-    litellm.suppress_debug_info = True
-    litellm.set_verbose = False
-except ImportError:
-    pass
-
-# ─────────────────────────────────────────
+# -----------------------------------------
 # CONFIG
-# ─────────────────────────────────────────
+# -----------------------------------------
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://env:8000")
 MOCK_MODE    = os.environ.get("MOCK_MODE", "false").lower() == "true"
 TASK_NAME    = "ui_accessibility_audit"
 
-# ─────────────────────────────────────────
+# -----------------------------------------
 # HELPERS
-# ─────────────────────────────────────────
+# -----------------------------------------
 
 def clamp(value: float) -> float:
     """Clamp reward/score between 0.05 and 0.95."""
@@ -55,16 +48,16 @@ def output_safe_default():
 
 def wait_for_env_container() -> bool:
     """Poll the environment health endpoint."""
-    print("[INFO] Waiting for env container...", file=sys.stderr, flush=True)
+    print("(INFO) Waiting for env container...", file=sys.stderr, flush=True)
     for attempt in range(8):
         try:
             r = requests.get(f"{ENV_BASE_URL}/health", timeout=3)
             if r.status_code == 200:
-                print(f"[INFO] Container ready after {attempt+1} attempts", file=sys.stderr, flush=True)
+                print(f"(INFO) Container ready after {attempt+1} attempts", file=sys.stderr, flush=True)
                 return True
         except Exception:
             pass
-        print(f"[INFO] Attempt {attempt+1}/8 - retrying...", file=sys.stderr, flush=True)
+        print(f"(INFO) Attempt {attempt+1}/8 - retrying...", file=sys.stderr, flush=True)
         time.sleep(2)
     return False
 
@@ -75,7 +68,7 @@ def safe_post(endpoint: str, payload: dict) -> dict:
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        print(f"[ERROR] {endpoint} failed: {e}", file=sys.stderr, flush=True)
+        print(f"(ERROR) {endpoint} failed: {e}", file=sys.stderr, flush=True)
         return {"error": str(e)}
 
 def build_action(obs: dict) -> dict:
@@ -113,12 +106,12 @@ def build_action(obs: dict) -> dict:
                 "value": "Accessible UI component for WCAG 1.1.1 compliance"
             }
     except Exception as e:
-        print(f"[ERROR] build_action failed: {e}", file=sys.stderr, flush=True)
+        print(f"(ERROR) build_action failed: {e}", file=sys.stderr, flush=True)
         return {"tool": "update_attribute", "node_id": "img_001", "attribute": "alt", "value": "Accessible image"}
 
-# ─────────────────────────────────────────
+# -----------------------------------------
 # MAIN AGENT LOOP
-# ─────────────────────────────────────────
+# -----------------------------------------
 
 def run_agent():
     """Main execution logic for the agent."""
@@ -174,15 +167,17 @@ def run_agent():
     # Print END block
     print_end(task_name, final_score, step_count)
 
-# ─────────────────────────────────────────
+# -----------------------------------------
 # ENTRY POINT
-# ─────────────────────────────────────────
+# -----------------------------------------
 
 if __name__ == "__main__":
     try:
         run_agent()
     except Exception as e:
-        print(f"[FATAL] {e}", file=sys.stderr, flush=True)
+        print(f"(FATAL) {e}", file=sys.stderr, flush=True)
         output_safe_default()
     finally:
         sys.exit(0)
+
+

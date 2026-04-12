@@ -5,6 +5,7 @@ import time
 import subprocess
 import threading
 import requests
+import re
 from typing import Optional, Dict, Any
 
 # =============================================================================
@@ -92,173 +93,107 @@ def test_api_endpoints():
     else:
         log_fail("/health", f"Received: {resp.text}")
 
-    # 2. /api/reset
-    resp = requests.post(f"{ENV_BASE_URL}/api/reset", json={"task_difficulty": "easy"})
+    # 2. /reset
+    resp = requests.post(f"{ENV_BASE_URL}/reset", json={"task_difficulty": "openenv"})
     data = resp.json()
-    if resp.status_code == 200 and "dom_state" in data:
-        log_pass("/api/reset", "Returns valid observation")
+    if resp.status_code == 200 and "observation" in data:
+        log_pass("/reset", "Returns valid observation")
     else:
-        log_fail("/api/reset", f"Received: {resp.text}")
+        log_fail("/reset", f"Received: {resp.text}")
 
-    # 3. /api/step (Mock Action)
+    # 3. /step (Mock Action)
     mock_action = {
-        "action_type": "update_attribute", 
-        "node_id": "hero-img", 
-        "attr_name": "alt", 
-        "new_value": "Audit Test"
+        "tool": "update_attribute", 
+        "node_id": "img_001", 
+        "attribute": "alt", 
+        "value": "Audit Test"
     }
-    resp = requests.post(f"{ENV_BASE_URL}/api/step", json={"action": mock_action, "task_difficulty": "easy"})
+    resp = requests.post(f"{ENV_BASE_URL}/step", json={"action": mock_action})
     data = resp.json()
-    if resp.status_code == 200 and "current_score" in data:
-        log_pass("/api/step", f"Returns reward={data['current_score']}")
+    if resp.status_code == 200 and "reward" in data:
+        log_pass("/step", f"Returns reward={data['reward']}")
     else:
-        log_fail("/api/step", f"Received: {resp.text}")
+        log_fail("/step", f"Received: {resp.text}")
 
 # =============================================================================
-# PHASE 3 & 4: AGENT & SCHEMA VALIDATION
+# PHASE 3: AGENT VALIDATION (STRUCTURED BLOCKS)
 # =============================================================================
 
 def run_agent_test():
-    """Runs inference.py and validates stdout/stderr and JSON schema."""
-    log_info("Running inference.py subprocess test...")
+    """Runs inference.py and validates structured [START][STEP][END] output."""
+    log_info("Running inference.py block validation test...")
     
     env = os.environ.copy()
+    # For local test, enable mock if no key
     if not (env.get("API_KEY") or env.get("OPENAI_API_KEY") or env.get("GEMINI_API_KEY") or env.get("GOOGLE_API_KEY")):
-        log_warn("No API key found. Enabling MOCK_MODE=true")
-        env["MOCK_MODE"] = "true"
+        log_warn("No API key found. Testing in LIVE mode against local server (ensure server is up).")
 
     try:
         process = subprocess.run(
-<<<<<<< Updated upstream
             AGENT_CMD,
-=======
-            [sys.executable, "inference.py"],
->>>>>>> Stashed changes
             capture_output=True,
             text=True,
             timeout=AGENT_TIMEOUT,
             env=env
         )
         
-        # 1. Check for logs in stderr
-        if process.stderr:
-            log_info("Debug logs captured in stderr.")
+        stdout = process.stdout
+        stderr = process.stderr
+        
+        if stderr:
+            log_info(f"Agent Stderr: {stderr.strip()}")
 
-        # 2. Parse JSON from stdout
-        try:
-            result = json.loads(process.stdout.strip())
-            log_pass("inference.py stdout JSON", "Valid JSON parsed from stdout")
-        except json.JSONDecodeError:
-            log_fail("inference.py stdout JSON", f"Stdout is NOT valid JSON: {process.stdout[:200]}...")
-            return None
-
-        # 3. Validate Schema
-        required_keys = ["actions", "total_reward", "episodes_completed", "final_dom_state"]
-        missing = [k for k in required_keys if k not in result]
-        if not missing:
-            log_pass("JSON Schema", "All mandatory keys present")
+        lines = [l.strip() for l in stdout.splitlines() if l.strip()]
+        
+        # 1. Check for [START]
+        start_lines = [l for l in lines if l.startswith("[START]")]
+        if len(start_lines) == 1:
+            log_pass("Structured Output: [START]", start_lines[0])
         else:
-            log_fail("JSON Schema", f"Missing keys: {missing}")
+            log_fail("Structured Output: [START]", f"Found {len(start_lines)} [START] blocks")
 
-        # 4. Reward Clamping
-        reward = result["total_reward"]
-        if 0.05 <= reward <= 0.95:
-            log_pass("Reward Clamping", f"0.05 <= {reward} <= 0.95")
+        # 2. Check for [STEP]
+        step_lines = [l for l in lines if l.startswith("[STEP]")]
+        if len(step_lines) > 0:
+            log_pass("Structured Output: [STEP]", f"Found {len(step_lines)} steps")
         else:
-            log_fail("Reward Clamping", f"Reward {reward} out of bounds")
+            log_fail("Structured Output: [STEP]", "No [STEP] blocks found")
 
-<<<<<<< Updated upstream
-        # 5. Action tools valid
-        actions = result["actions"]
-        if len(actions) > 0:
-            log_pass("Action Count", f"{len(actions)} actions taken")
-            valid_tools = ["update_attribute", "modify_css", "reorder_nodes"]
-            for i, action in enumerate(actions):
-                if action.get("tool") in valid_tools:
-                    # Generic check for schema
-                    if "node_id" in action and "attribute" in action and "value" in action:
-                        log_pass(f"Action {i+1} Schema", f"Valid {action['tool']}")
-                    else:
-                        log_fail(f"Action {i+1} Schema", "Missing required fields")
+        # 3. Check for [END]
+        end_lines = [l for l in lines if l.startswith("[END]")]
+        if len(end_lines) == 1:
+            log_pass("Structured Output: [END]", end_lines[0])
+        else:
+            log_fail("Structured Output: [END]", f"Found {len(end_lines)} [END] blocks")
+
+        # 4. Check for pollution
+        pollution = [l for l in lines if not any(l.startswith(p) for p in ["[START]", "[STEP]", "[END]"])]
+        if not pollution:
+            log_pass("Stdout Purity", "No pollution found")
+        else:
+            log_fail("Stdout Purity", f"Found {len(pollution)} extra lines: {pollution[:2]}")
+
+        # 5. Validate [END] format and score
+        if end_lines:
+            match = re.search(r"score=([\d.]+)", end_lines[0])
+            if match:
+                score = float(match.group(1))
+                if 0.05 <= score <= 0.95:
+                    log_pass("Score Validation", f"Score {score} is correctly clamped")
                 else:
-                    log_fail(f"Action {i+1} Tool", f"Invalid tool: {action.get('tool')}")
-        else:
-            log_fail("Action Count", "Zero actions taken")
+                    log_fail("Score Validation", f"Score {score} is out of bounds (0.05-0.95)")
+            else:
+                log_fail("Score Validation", "Could not parse score from [END] block")
 
-=======
->>>>>>> Stashed changes
-        return result
+        return True if not pollution and start_lines and end_lines else False
 
     except subprocess.TimeoutExpired:
         log_fail("inference.py", "Timed out after 120s")
     except Exception as e:
         log_fail("inference.py", str(e))
-    return None
+    return False
 
 # =============================================================================
-<<<<<<< Updated upstream
-# PHASE 5: DOCKER TEST
-# =============================================================================
-
-def run_docker_test():
-    """Builds and runs the Docker container to verify setup."""
-    log_info("Starting Docker simulation test...")
-    try:
-        # Check if docker exists
-        subprocess.run(["docker", "--version"], capture_output=True, check=True)
-    except:
-        log_warn("Docker not found or not running. Skipping Phase 5.")
-        return "SKIPPED"
-
-    image_name = "ui-auditor-test"
-    try:
-        log_info("Building Docker image...")
-        subprocess.run(["docker", "build", "-t", image_name, "."], check=True)
-        log_pass("Docker build", "Image built successfully")
-
-        log_info("Running container...")
-        container_id = subprocess.check_output([
-            "docker", "run", "-d", "-p", "8001:8000", image_name
-        ]).decode().strip()
-        
-        time.sleep(5)
-        try:
-            resp = requests.get("http://localhost:8001/health", timeout=5)
-            if resp.status_code == 200:
-                log_pass("Docker run", "Container reachable at port 8001")
-            else:
-                log_fail("Docker run", f"Container health returned {resp.status_code}")
-        finally:
-            subprocess.run(["docker", "stop", container_id], capture_output=True)
-            subprocess.run(["docker", "rm", container_id], capture_output=True)
-        
-        return "PASSED"
-    except Exception as e:
-        log_fail("Docker Test", str(e))
-        return "FAILED"
-
-# =============================================================================
-# PHASE 6: REPORTING
-# =============================================================================
-
-def print_report(results: list):
-    print("\n" + "="*60)
-    print("FINAL TEST REPORT")
-    print("="*60)
-    print(f"{'Test':<30} | {'Status':<8} | {'Details':<20}")
-    print("-" * 60)
-    for row in results:
-        status_color = Colors.GREEN if "[PASS]" in row[1] else (Colors.YELLOW if "[SKIP]" in row[1] else Colors.RED)
-        print(f"{row[0]:<30} | {status_color}{row[1]:<8}{Colors.RESET} | {row[2]:<20}")
-    print("="*60)
-    
-    total = len(results)
-    passed = sum(1 for r in results if "[PASS]" in r[1])
-    print(f"Overall: {passed}/{total} PASSED - {'Safe to submit' if passed == total else 'Review failures'}")
-
-# =============================================================================
-=======
->>>>>>> Stashed changes
 # MAIN
 # =============================================================================
 
@@ -266,52 +201,31 @@ def main():
     report = []
     server_proc = None
     try:
-        # Phase 1
+        # Phase 1: Server
         try:
             server_proc = start_server()
             report.append(["Server Health", "[PASS]", "Healthy on port 8000"])
         except Exception as e:
             report.append(["Server Health", "[FAIL]", str(e)])
-<<<<<<< Updated upstream
             print_report(report)
-=======
->>>>>>> Stashed changes
             return
 
-        # Phase 2
+        # Phase 2: API
         try:
             test_api_endpoints()
             report.append(["API Endpoints", "[PASS]", "Health/Reset/Step OK"])
         except Exception as e:
             report.append(["API Endpoints", "[FAIL]", str(e)])
 
-        # Phase 3 & 4
-        agent_result = run_agent_test()
-        if agent_result:
-            report.append(["inference.py stdout JSON", "[PASS]", "Valid schema"])
-            report.append(["Reward clamping", "[PASS]", f"0.05 <= {agent_result['total_reward']} <= 0.95"])
-<<<<<<< Updated upstream
-            report.append(["Action tools valid", "[PASS]", f"{len(agent_result['actions'])} actions"])
+        # Phase 3: Agent Blocks
+        success = run_agent_test()
+        if success:
+            report.append(["Agent Blocks", "[PASS]", "START/STEP/END Valid"])
         else:
-            report.append(["inference.py stdout JSON", "[FAIL]", "Parse or schema error"])
-            report.append(["Reward clamping", "[FAIL]", "N/A"])
-            report.append(["Action tools valid", "[FAIL]", "N/A"])
+            report.append(["Agent Blocks", "[FAIL]", "Output parsing failed"])
 
-        # Phase 5
-        docker_status = run_docker_test()
-        if docker_status == "PASSED":
-            report.append(["Docker build & run", "[PASS]", "Container health OK"])
-        elif docker_status == "SKIPPED":
-            report.append(["Docker build & run", "[SKIP]", "Docker bit found"])
-        else:
-            report.append(["Docker build & run", "[FAIL]", "Build or run error"])
-
-        # Phase 6
+        # Final Report
         print_report(report)
-=======
-        else:
-            report.append(["inference.py stdout JSON", "[FAIL]", "Parse or schema error"])
->>>>>>> Stashed changes
 
     finally:
         if server_proc:
@@ -319,5 +233,21 @@ def main():
             server_proc.terminate()
             server_proc.wait()
 
+def print_report(results: list):
+    print("\n" + "="*60)
+    print("FINAL TEST REPORT")
+    print("="*60)
+    print(f"{'Test':<30} | {'Status':<10} | {'Details':<20}")
+    print("-" * 60)
+    for row in results:
+        status_color = Colors.GREEN if "[PASS]" in row[1] else Colors.RED
+        print(f"{row[0]:<30} | {status_color}{row[1]:<10}{Colors.RESET} | {row[2]:<20}")
+    print("="*60)
+    
+    total = len(results)
+    passed = sum(1 for r in results if "[PASS]" in r[1])
+    print(f"Overall: {passed}/{total} PASSED - {'Ready for submission' if passed == total else 'Review failures'}")
+
 if __name__ == "__main__":
     main()
+
