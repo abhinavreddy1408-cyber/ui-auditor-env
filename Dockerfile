@@ -27,4 +27,6 @@ EXPOSE 8000
 EXPOSE 7860
 
 # Launch the OpenEnv-compatible API server
-CMD ["python", "server/app.py"]
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]
