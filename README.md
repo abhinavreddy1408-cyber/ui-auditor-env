@@ -13,7 +13,6 @@ app_port: 8000
 
 A premium, Dribbble-inspired simulated environment built specifically for the **Scalar × Meta & Hugging Face Agentic AI Hackathon**.
 
-![AI Auditor Hero](file:///C:/Users/abhin/.gemini/antigravity/brain/bda56180-769c-4be9-ab9a-415a7d291efa/ai_auditor_hero_v2_1775312085429.png)
 
 ## 🌟 The Vision & Problem
 Currently, generic AI web-agents are bloated—relying on memory-heavy headless Chromium models that scrape raw HTML blindly. For enterprise-grade accessibility (WCAG) and Semantic SEO auditing, this approach is imprecise, prone to hallucination, and extremely expensive to scale.
@@ -105,3 +104,16 @@ Name: OPENAI_API_KEY (or HF_TOKEN)
 Value: sk-your-actual-api-key
 
 **Build & Run**: The Space will automatically build the Dockerfile into a container optimized precisely for the default Hackathon hardware tier, rendering your OpenEnv evaluation suite perfectly online!
+
+---
+
+## 📄 License
+
+Distributed under the [MIT License](LICENSE).
+
+---
+
+## 📬 Contact
+
+**Abhinav Reddy** — [@abhinavreddy1408-cyber](https://github.com/abhinavreddy1408-cyber)  
+Project Link: [https://github.com/abhinavreddy1408-cyber/ui-auditor-env](https://github.com/abhinavreddy1408-cyber/ui-auditor-env)
